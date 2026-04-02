@@ -17,7 +17,7 @@ Full monitoring and control for Proxmox Backup Server (PBS). Includes optional P
 
 ## Prerequisites
 
-- Home Assistant 2024.1.0 or newer
+- Home Assistant 2026.3.0 or newer
 - Proxmox Backup Server (PBS) instance with API token access
 - Optionally a Proxmox VE (PVE) instance with API token access
 
