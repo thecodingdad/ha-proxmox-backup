@@ -1,0 +1,107 @@
+# Proxmox Backup Server
+
+Full monitoring and control for Proxmox Backup Server (PBS). Includes optional Proxmox VE (PVE) integration for VM backup management.
+
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
+[![GitHub Release](https://img.shields.io/github/v/release/thecodingdad/ha-proxmox-backup)](https://github.com/thecodingdad/ha-proxmox-backup/releases)
+
+## Features
+
+- Monitor datastore usage, total size, and used space
+- Track snapshot counts per datastore
+- View status of last verify, garbage collection, and prune tasks
+- Binary sensor for backup freshness (stale after 26 hours)
+- Trigger verify jobs, garbage collection, and prune operations from Home Assistant
+- Optional Proxmox VE integration for VM backup management
+- API token-based authentication
+
+## Prerequisites
+
+- Home Assistant 2024.1.0 or newer
+- Proxmox Backup Server (PBS) instance with API token access
+- Optionally a Proxmox VE (PVE) instance with API token access
+
+## Installation
+
+### HACS (Recommended)
+
+1. Open HACS in your Home Assistant instance
+2. Click "Explore & Download Repositories"
+3. Search for "Proxmox Backup Server"
+4. Click "Download"
+5. Restart Home Assistant
+
+### Manual Installation
+
+1. Download the latest release from [GitHub Releases](https://github.com/thecodingdad/ha-proxmox-backup/releases)
+2. Copy the `custom_components/proxmox_backup` folder to your Home Assistant `config/custom_components/` directory
+3. Restart Home Assistant
+
+## Configuration
+
+### Setup
+
+1. Go to **Settings** -> **Devices & Services**
+2. Click **Add Integration**
+3. Search for "Proxmox Backup Server"
+4. Follow the setup wizard
+
+### PBS Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `host` | string | required | PBS server address |
+| `port` | integer | 8007 | PBS API port |
+| `token_id` | string | required | API token ID (e.g. user@pbs!token) |
+| `token_secret` | string | required | API token secret |
+| `verify_ssl` | boolean | false | Enable SSL certificate verification |
+| `node` | string | localhost | Backup node name |
+| `scan_interval` | integer | 300 | Polling interval in seconds (60-3600) |
+
+### Optional PVE Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `pve_host` | string | optional | PVE server address |
+| `pve_port` | integer | 8006 | PVE API port |
+| `pve_token_id` | string | optional | PVE API token ID |
+| `pve_token_secret` | string | optional | PVE API token secret |
+| `pve_verify_ssl` | boolean | false | Enable SSL certificate verification |
+
+## Entities
+
+The integration creates the following entities for each datastore on your Proxmox Backup Server.
+
+### Sensors
+
+| Sensor | Description |
+|--------|-------------|
+| Datastore Usage | Datastore usage as a percentage |
+| Total Size | Total capacity of the datastore |
+| Used Size | Amount of space currently used |
+| Snapshot Count | Number of snapshots stored in the datastore |
+| Last Verify Task | Status of the last verify task |
+| Last GC Task | Status of the last garbage collection task |
+| Last Prune Task | Status of the last prune task |
+
+### Binary Sensors
+
+| Binary Sensor | Description |
+|---------------|-------------|
+| Backup Freshness | Indicates whether the backup is stale (no backup in the last 26 hours) |
+
+### Buttons
+
+| Button | Description |
+|--------|-------------|
+| Trigger Verify | Start a verify job on the datastore |
+| Garbage Collection | Run garbage collection on the datastore |
+| Prune | Execute a prune operation on the datastore |
+
+## Multilanguage Support
+
+This integration supports English and German.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

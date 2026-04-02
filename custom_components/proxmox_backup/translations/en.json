@@ -1,0 +1,206 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Proxmox Backup Server Setup",
+        "description": "Enter the connection details for your PBS instance.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "token_id": "API Token ID",
+          "token_secret": "API Token Secret",
+          "verify_ssl": "Verify SSL certificate",
+          "node": "Node name"
+        },
+        "data_description": {
+          "host": "Hostname or IP address of your PBS instance (e.g. 192.168.1.100)",
+          "port": "Port of the PBS web interface (default: 8007)",
+          "token_id": "API token identifier (e.g. monitor@pbs!ha-token)",
+          "token_secret": "Secret value of the API token",
+          "verify_ssl": "Disable for self-signed certificates",
+          "node": "PBS node name (usually localhost)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure PBS Connection",
+        "description": "Update the connection details for your PBS instance.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "token_id": "API Token ID",
+          "token_secret": "API Token Secret",
+          "verify_ssl": "Verify SSL certificate",
+          "node": "Node name"
+        },
+        "data_description": {
+          "host": "Hostname or IP address of your PBS instance (e.g. 192.168.1.100)",
+          "port": "Port of the PBS web interface (default: 8007)",
+          "token_id": "API token identifier (e.g. monitor@pbs!ha-token)",
+          "token_secret": "Secret value of the API token",
+          "verify_ssl": "Disable for self-signed certificates",
+          "node": "PBS node name (usually localhost)"
+        }
+      },
+      "reconfigure_pve": {
+        "title": "Reconfigure PVE Connection (Optional)",
+        "description": "Update the PVE connection details. Leave host empty to remove PVE connection.",
+        "data": {
+          "pve_host": "PVE Host",
+          "pve_port": "PVE Port",
+          "pve_token_id": "PVE API Token ID",
+          "pve_token_secret": "PVE API Token Secret",
+          "pve_verify_ssl": "Verify SSL certificate"
+        },
+        "data_description": {
+          "pve_host": "Hostname or IP address of your PVE instance (leave empty to remove)",
+          "pve_port": "Port of the PVE web interface (default: 8006)",
+          "pve_token_id": "PVE API token identifier (e.g. root@pam!ha-token)",
+          "pve_token_secret": "Secret value of the PVE API token",
+          "pve_verify_ssl": "Disable for self-signed certificates"
+        }
+      },
+      "pve": {
+        "title": "Proxmox VE Connection (Optional)",
+        "description": "Optionally connect to Proxmox VE to trigger backups and view schedules. Leave host empty to skip.",
+        "data": {
+          "pve_host": "PVE Host",
+          "pve_port": "PVE Port",
+          "pve_token_id": "PVE API Token ID",
+          "pve_token_secret": "PVE API Token Secret",
+          "pve_verify_ssl": "Verify SSL certificate"
+        },
+        "data_description": {
+          "pve_host": "Hostname or IP address of your PVE instance (leave empty to skip)",
+          "pve_port": "Port of the PVE web interface (default: 8006)",
+          "pve_token_id": "PVE API token identifier (e.g. root@pam!ha-token)",
+          "pve_token_secret": "Secret value of the PVE API token",
+          "pve_verify_ssl": "Disable for self-signed certificates"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Proxmox Backup Server.",
+      "invalid_auth": "Invalid API token.",
+      "pve_cannot_connect": "Failed to connect to Proxmox VE.",
+      "pve_invalid_auth": "Invalid PVE API token.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This PBS instance is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Proxmox Backup Server Options",
+        "data": {
+          "scan_interval": "Scan interval (seconds)"
+        },
+        "data_description": {
+          "scan_interval": "How often to poll backup status (60-3600 seconds)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "total_size": {
+        "name": "Total size"
+      },
+      "used_size": {
+        "name": "Used size"
+      },
+      "available_size": {
+        "name": "Available size"
+      },
+      "usage_percent": {
+        "name": "Usage"
+      },
+      "snapshot_count": {
+        "name": "Snapshot count"
+      },
+      "last_backup_time": {
+        "name": "Last backup time"
+      },
+      "last_backup_status": {
+        "name": "Last backup status"
+      },
+      "last_backup_size": {
+        "name": "Last backup size"
+      },
+      "last_backup_duration": {
+        "name": "Last backup duration"
+      },
+      "backup_count": {
+        "name": "Backup count"
+      },
+      "total_tasks_24h": {
+        "name": "Backup tasks (24h)"
+      },
+      "failed_tasks_24h": {
+        "name": "Failed tasks (24h)"
+      },
+      "verify_last_run": {
+        "name": "Last verify"
+      },
+      "verify_last_status": {
+        "name": "Verify status"
+      },
+      "verify_last_duration": {
+        "name": "Verify duration"
+      },
+      "gc_last_run": {
+        "name": "Last garbage collection"
+      },
+      "gc_last_status": {
+        "name": "GC status"
+      },
+      "gc_last_duration": {
+        "name": "GC duration"
+      },
+      "prune_last_run": {
+        "name": "Last prune"
+      },
+      "prune_last_status": {
+        "name": "Prune status"
+      },
+      "prune_last_duration": {
+        "name": "Prune duration"
+      },
+      "last_verify_time": {
+        "name": "Last verify time"
+      },
+      "next_backup_time": {
+        "name": "Next scheduled backup"
+      }
+    },
+    "binary_sensor": {
+      "backup_failed": {
+        "name": "Backup failed"
+      },
+      "backup_recent": {
+        "name": "Backup recent"
+      },
+      "backup_verified": {
+        "name": "Backup verified"
+      }
+    },
+    "button": {
+      "verify": {
+        "name": "Verify"
+      },
+      "garbage_collection": {
+        "name": "Garbage collection"
+      },
+      "prune": {
+        "name": "Prune"
+      },
+      "trigger_backup": {
+        "name": "Trigger backup"
+      },
+      "verify_guest": {
+        "name": "Verify"
+      }
+    }
+  }
+}
