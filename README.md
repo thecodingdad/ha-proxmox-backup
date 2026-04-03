@@ -12,7 +12,7 @@ Full monitoring and control for Proxmox Backup Server (PBS). Includes optional P
 - View status of last verify, garbage collection, and prune tasks
 - Binary sensor for backup freshness (stale after 26 hours)
 - Trigger verify jobs, garbage collection, and prune operations from Home Assistant
-- Optional Proxmox VE integration for VM backup management
+- Optional Proxmox VE integration for backup triggers
 - API token-based authentication
 
 ## Prerequisites
