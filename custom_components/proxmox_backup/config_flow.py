@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import logging
 from typing import Any
 
@@ -17,7 +18,12 @@ from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import PBSApiClient, PBSAuthError, PBSConnectionError
+from .api import (
+    PBSApiClient,
+    PBSAuthError,
+    PBSConnectionError,
+    PBSPermissionError,
+)
 from .const import (
     CONF_NODE,
     CONF_PVE_HOST,
@@ -36,7 +42,12 @@ from .const import (
     MAX_SCAN_INTERVAL,
     MIN_SCAN_INTERVAL,
 )
-from .pve_api import PVEApiClient, PVEAuthError, PVEConnectionError
+from .pve_api import (
+    PVEApiClient,
+    PVEAuthError,
+    PVEConnectionError,
+    PVEPermissionError,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -100,11 +111,15 @@ class PBSConfigFlow(ConfigFlow, domain=DOMAIN):
 
             try:
                 await client.async_test_connection()
+                await client.async_check_permissions(user_input[CONF_NODE])
             except PBSConnectionError as err:
                 _LOGGER.error("Cannot connect to PBS: %s", err)
                 errors["base"] = "cannot_connect"
             except PBSAuthError:
                 errors["base"] = "invalid_auth"
+            except PBSPermissionError as err:
+                _LOGGER.error("PBS token lacks permissions: %s", err)
+                errors["base"] = "insufficient_permissions"
             except Exception:
                 _LOGGER.exception("Unexpected error during PBS setup")
                 errors["base"] = "unknown"
@@ -118,6 +133,66 @@ class PBSConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=STEP_USER_DATA_SCHEMA,
+            errors=errors,
+        )
+
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> ConfigFlowResult:
+        """Handle re-authentication after PBS rejected the token."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ask for a new PBS API token."""
+        errors: dict[str, str] = {}
+        entry = self._get_reauth_entry()
+
+        if user_input is not None:
+            verify_ssl = entry.data.get(CONF_VERIFY_SSL, False)
+            session = async_get_clientsession(self.hass, verify_ssl=verify_ssl)
+            client = PBSApiClient(
+                session=session,
+                host=entry.data[CONF_HOST],
+                port=entry.data[CONF_PORT],
+                token_id=user_input[CONF_TOKEN_ID],
+                token_secret=user_input[CONF_TOKEN_SECRET],
+                verify_ssl=verify_ssl,
+            )
+
+            try:
+                await client.async_test_connection()
+                await client.async_check_permissions(
+                    entry.data.get(CONF_NODE, "localhost")
+                )
+            except PBSConnectionError as err:
+                _LOGGER.error("Cannot connect to PBS: %s", err)
+                errors["base"] = "cannot_connect"
+            except PBSAuthError:
+                errors["base"] = "invalid_auth"
+            except PBSPermissionError as err:
+                _LOGGER.error("PBS token lacks permissions: %s", err)
+                errors["base"] = "insufficient_permissions"
+            except Exception:
+                _LOGGER.exception("Unexpected error during PBS reauth")
+                errors["base"] = "unknown"
+            else:
+                return self.async_update_reload_and_abort(
+                    entry, data_updates=user_input
+                )
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_TOKEN_ID, default=entry.data.get(CONF_TOKEN_ID, "")
+                    ): str,
+                    vol.Required(CONF_TOKEN_SECRET): str,
+                }
+            ),
+            description_placeholders={"host": entry.data[CONF_HOST]},
             errors=errors,
         )
 
@@ -145,11 +220,15 @@ class PBSConfigFlow(ConfigFlow, domain=DOMAIN):
 
             try:
                 await client.async_test_connection()
+                await client.async_check_permissions(user_input[CONF_NODE])
             except PBSConnectionError as err:
                 _LOGGER.error("Cannot connect to PBS: %s", err)
                 errors["base"] = "cannot_connect"
             except PBSAuthError:
                 errors["base"] = "invalid_auth"
+            except PBSPermissionError as err:
+                _LOGGER.error("PBS token lacks permissions: %s", err)
+                errors["base"] = "insufficient_permissions"
             except Exception:
                 _LOGGER.exception("Unexpected error during PBS reconfigure")
                 errors["base"] = "unknown"
@@ -204,11 +283,15 @@ class PBSConfigFlow(ConfigFlow, domain=DOMAIN):
 
             try:
                 await client.async_test_connection()
+                await client.async_check_permissions()
             except PVEConnectionError as err:
                 _LOGGER.error("Cannot connect to PVE: %s", err)
                 errors["base"] = "pve_cannot_connect"
             except PVEAuthError:
                 errors["base"] = "pve_invalid_auth"
+            except PVEPermissionError as err:
+                _LOGGER.error("PVE token lacks permissions: %s", err)
+                errors["base"] = "pve_insufficient_permissions"
             except Exception:
                 _LOGGER.exception("Unexpected error during PVE reconfigure")
                 errors["base"] = "unknown"
@@ -260,11 +343,15 @@ class PBSConfigFlow(ConfigFlow, domain=DOMAIN):
 
             try:
                 await client.async_test_connection()
+                await client.async_check_permissions()
             except PVEConnectionError as err:
                 _LOGGER.error("Cannot connect to PVE: %s", err)
                 errors["base"] = "pve_cannot_connect"
             except PVEAuthError:
                 errors["base"] = "pve_invalid_auth"
+            except PVEPermissionError as err:
+                _LOGGER.error("PVE token lacks permissions: %s", err)
+                errors["base"] = "pve_insufficient_permissions"
             except Exception:
                 _LOGGER.exception("Unexpected error during PVE setup")
                 errors["base"] = "unknown"

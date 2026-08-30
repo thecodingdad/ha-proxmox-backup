@@ -51,6 +51,19 @@ API_DATASTORE_VERIFY = "/api2/json/admin/datastore/{store}/verify"
 API_DATASTORE_GC = "/api2/json/admin/datastore/{store}/garbage-collection"
 API_DATASTORE_PRUNE = "/api2/json/admin/datastore/{store}/prune"
 
+# PBS privileges, used to explain 403 responses
+PRIV_DATASTORE_AUDIT = "Datastore.Audit on /datastore"
+PRIV_DATASTORE_MODIFY = "Datastore.Modify on /datastore/{store}"
+PRIV_DATASTORE_PRUNE = "Datastore.Prune or Datastore.Modify on /datastore/{store}"
+PRIV_DATASTORE_VERIFY = "Datastore.Verify on /datastore/{store}"
+PRIV_SYS_AUDIT = "Sys.Audit on /system"
+
+# PVE privileges, used to explain 403 responses
+PRIV_PVE_SYS_AUDIT = "Sys.Audit on /"
+PRIV_PVE_VM_BACKUP = (
+    "VM.Backup on /vms/{vmid} and Datastore.AllocateSpace on /storage/{storage}"
+)
+
 # PBS task types for filtering
 TASK_TYPE_VERIFY_JOB = "verificationjob"
 TASK_TYPE_VERIFY_GROUP = "verify_group"

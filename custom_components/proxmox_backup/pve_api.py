@@ -12,6 +12,8 @@ from .const import (
     API_PVE_NODES,
     API_PVE_VERSION,
     API_PVE_VZDUMP,
+    PRIV_PVE_SYS_AUDIT,
+    PRIV_PVE_VM_BACKUP,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -22,7 +24,20 @@ class PVEConnectionError(Exception):
 
 
 class PVEAuthError(Exception):
-    """Authentication error with Proxmox VE."""
+    """Invalid API token (HTTP 401)."""
+
+
+class PVEPermissionError(Exception):
+    """Token is valid but lacks the required privileges (HTTP 403)."""
+
+    def __init__(self, endpoint: str, permission: str) -> None:
+        """Initialize with the denied endpoint and the missing permission."""
+        super().__init__(
+            f"Token lacks permission for {endpoint} "
+            f"(status 403, requires {permission})"
+        )
+        self.endpoint = endpoint
+        self.permission = permission
 
 
 class PVEApiClient:
@@ -51,6 +66,7 @@ class PVEApiClient:
         method: str = "GET",
         params: dict[str, Any] | None = None,
         data: dict[str, Any] | None = None,
+        permission: str = "the required privilege",
     ) -> Any:
         """Make an HTTP request to the PVE API."""
         url = f"{self._base_url}{endpoint}"
@@ -69,10 +85,13 @@ class PVEApiClient:
                 f"Cannot connect to PVE at {self._base_url}: {err}"
             ) from err
 
-        if resp.status in (401, 403):
+        if resp.status == 401:
             raise PVEAuthError(
-                f"Authentication failed (status {resp.status})"
+                f"Invalid API token (status 401) while calling {endpoint}"
             )
+
+        if resp.status == 403:
+            raise PVEPermissionError(endpoint, permission)
 
         if resp.status != 200:
             text = await resp.text()
@@ -93,11 +112,13 @@ class PVEApiClient:
 
     async def async_get_nodes(self) -> list[dict[str, Any]]:
         """Fetch list of nodes."""
-        return await self._request(API_PVE_NODES)
+        return await self._request(API_PVE_NODES, permission=PRIV_PVE_SYS_AUDIT)
 
     async def async_get_backup_jobs(self) -> list[dict[str, Any]]:
         """Fetch configured backup jobs."""
-        result = await self._request(API_PVE_BACKUP_JOBS)
+        result = await self._request(
+            API_PVE_BACKUP_JOBS, permission=PRIV_PVE_SYS_AUDIT
+        )
         return result if isinstance(result, list) else []
 
     async def async_trigger_backup(
@@ -109,9 +130,22 @@ class PVEApiClient:
             endpoint,
             method="POST",
             data={"vmid": vmid, "storage": storage, "mode": "snapshot"},
+            permission=PRIV_PVE_VM_BACKUP.format(vmid=vmid, storage=storage),
         )
 
     async def async_test_connection(self) -> bool:
-        """Test the connection to PVE."""
+        """Test the connection to PVE.
+
+        /version needs no privileges, so a token without any ACL passes.
+        """
         await self.async_get_version()
         return True
+
+    async def async_check_permissions(self) -> None:
+        """Verify the token can read nodes and backup jobs.
+
+        Raises PVEPermissionError for the first endpoint that is denied.
+        VM.Backup cannot be checked without actually starting a backup.
+        """
+        await self.async_get_nodes()
+        await self.async_get_backup_jobs()

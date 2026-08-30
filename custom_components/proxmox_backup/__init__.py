@@ -7,10 +7,15 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import PBSApiClient, PBSAuthError, PBSConnectionError
+from .api import (
+    PBSApiClient,
+    PBSAuthError,
+    PBSConnectionError,
+    PBSPermissionError,
+)
 from .const import (
     CONF_PVE_HOST,
     CONF_PVE_PORT,
@@ -25,7 +30,7 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import PBSCoordinator
-from .pve_api import PVEApiClient
+from .pve_api import PVEApiClient, PVEPermissionError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,9 +51,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await client.async_test_connection()
     except PBSAuthError as err:
-        raise ConfigEntryNotReady(
-            f"Authentication failed: {err}"
-        ) from err
+        raise ConfigEntryAuthFailed(str(err)) from err
+    except PBSPermissionError as err:
+        raise ConfigEntryNotReady(str(err)) from err
     except PBSConnectionError as err:
         raise ConfigEntryNotReady(
             f"Cannot connect to PBS: {err}"
@@ -70,7 +75,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         try:
             await pve_client.async_test_connection()
+            await pve_client.async_check_permissions()
             _LOGGER.debug("PVE connection successful")
+        except PVEPermissionError as err:
+            _LOGGER.warning(
+                "PVE features disabled, token lacks permissions: %s", err
+            )
+            pve_client = None
         except Exception:
             _LOGGER.warning("PVE connection failed, continuing without PVE features", exc_info=True)
             pve_client = None

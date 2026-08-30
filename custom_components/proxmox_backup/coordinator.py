@@ -13,7 +13,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import PBSApiClient, PBSAuthError, PBSConnectionError
+from .api import (
+    PBSApiClient,
+    PBSAuthError,
+    PBSConnectionError,
+    PBSPermissionError,
+)
 from .const import (
     CONF_NODE,
     CONF_SCAN_INTERVAL,
@@ -126,7 +131,11 @@ class PBSCoordinator(DataUpdateCoordinator[PBSData]):
                 self.client.async_get_tasks(self._node, since=since),
             )
         except PBSAuthError as err:
-            raise ConfigEntryAuthFailed from err
+            raise ConfigEntryAuthFailed(str(err)) from err
+        except PBSPermissionError as err:
+            # Re-entering the same token will not help — the ACL must be fixed,
+            # so report it as a failed update instead of triggering reauth.
+            raise UpdateFailed(str(err)) from err
         except PBSConnectionError as err:
             raise UpdateFailed(f"Cannot connect to PBS: {err}") from err
 
@@ -290,6 +299,12 @@ class PBSCoordinator(DataUpdateCoordinator[PBSData]):
             results = await asyncio.gather(*tasks.values(), return_exceptions=True)
 
             for store, result in zip(tasks.keys(), results):
+                if isinstance(result, PBSPermissionError):
+                    _LOGGER.warning(
+                        "No snapshot data for datastore %s: %s", store, result
+                    )
+                    continue
+
                 if isinstance(result, Exception):
                     _LOGGER.debug(
                         "Failed to get snapshots for datastore %s: %s", store, result

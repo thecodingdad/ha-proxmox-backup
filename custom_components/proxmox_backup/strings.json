@@ -21,6 +21,18 @@
           "node": "PBS node name (usually localhost)"
         }
       },
+      "reauth_confirm": {
+        "title": "Re-authenticate PBS",
+        "description": "The API token for {host} was rejected. Enter a valid token.",
+        "data": {
+          "token_id": "API Token ID",
+          "token_secret": "API Token Secret"
+        },
+        "data_description": {
+          "token_id": "API token identifier (e.g. monitor@pbs!ha-token)",
+          "token_secret": "Secret value of the API token"
+        }
+      },
       "reconfigure": {
         "title": "Reconfigure PBS Connection",
         "description": "Update the connection details for your PBS instance.",
@@ -81,12 +93,16 @@
     "error": {
       "cannot_connect": "Failed to connect to Proxmox Backup Server.",
       "invalid_auth": "Invalid API token.",
+      "insufficient_permissions": "The API token is valid but lacks permissions. It needs Datastore.Audit on /datastore and Sys.Audit on /system (see README).",
       "pve_cannot_connect": "Failed to connect to Proxmox VE.",
       "pve_invalid_auth": "Invalid PVE API token.",
+      "pve_insufficient_permissions": "The PVE API token is valid but lacks permissions. It needs Sys.Audit on / (see README).",
       "unknown": "Unexpected error."
     },
     "abort": {
-      "already_configured": "This PBS instance is already configured."
+      "already_configured": "This PBS instance is already configured.",
+      "reauth_successful": "Re-authentication was successful.",
+      "reconfigure_successful": "Reconfiguration was successful."
     }
   },
   "options": {

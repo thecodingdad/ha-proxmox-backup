@@ -21,6 +21,18 @@
           "node": "PBS-Knotenname (normalerweise localhost)"
         }
       },
+      "reauth_confirm": {
+        "title": "PBS neu authentifizieren",
+        "description": "Das API-Token f\u00fcr {host} wurde abgelehnt. Geben Sie ein g\u00fcltiges Token ein.",
+        "data": {
+          "token_id": "API-Token-ID",
+          "token_secret": "API-Token-Geheimnis"
+        },
+        "data_description": {
+          "token_id": "API-Token-Bezeichner (z.B. monitor@pbs!ha-token)",
+          "token_secret": "Geheimer Wert des API-Tokens"
+        }
+      },
       "reconfigure": {
         "title": "PBS-Verbindung neu konfigurieren",
         "description": "Aktualisieren Sie die Verbindungsdaten Ihrer PBS-Instanz.",
@@ -81,12 +93,16 @@
     "error": {
       "cannot_connect": "Verbindung zum Proxmox Backup Server fehlgeschlagen.",
       "invalid_auth": "Ung\u00fcltiges API-Token.",
+      "insufficient_permissions": "Das API-Token ist g\u00fcltig, hat aber zu wenig Rechte. Ben\u00f6tigt werden Datastore.Audit auf /datastore und Sys.Audit auf /system (siehe README).",
       "pve_cannot_connect": "Verbindung zu Proxmox VE fehlgeschlagen.",
       "pve_invalid_auth": "Ung\u00fcltiges PVE API-Token.",
+      "pve_insufficient_permissions": "Das PVE-API-Token ist g\u00fcltig, hat aber zu wenig Rechte. Ben\u00f6tigt wird Sys.Audit auf / (siehe README).",
       "unknown": "Unerwarteter Fehler."
     },
     "abort": {
-      "already_configured": "Diese PBS-Instanz ist bereits konfiguriert."
+      "already_configured": "Diese PBS-Instanz ist bereits konfiguriert.",
+      "reauth_successful": "Neuauthentifizierung erfolgreich.",
+      "reconfigure_successful": "Neukonfiguration erfolgreich."
     }
   },
   "options": {

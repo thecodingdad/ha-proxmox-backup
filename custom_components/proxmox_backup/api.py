@@ -16,6 +16,11 @@ from .const import (
     API_DATASTORE_VERIFY,
     API_NODE_TASKS,
     API_VERSION,
+    PRIV_DATASTORE_AUDIT,
+    PRIV_DATASTORE_MODIFY,
+    PRIV_DATASTORE_PRUNE,
+    PRIV_DATASTORE_VERIFY,
+    PRIV_SYS_AUDIT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,7 +31,20 @@ class PBSConnectionError(Exception):
 
 
 class PBSAuthError(Exception):
-    """Authentication error with Proxmox Backup Server."""
+    """Invalid API token (HTTP 401)."""
+
+
+class PBSPermissionError(Exception):
+    """Token is valid but lacks the required privileges (HTTP 403)."""
+
+    def __init__(self, endpoint: str, permission: str) -> None:
+        """Initialize with the denied endpoint and the missing permission."""
+        super().__init__(
+            f"Token lacks permission for {endpoint} "
+            f"(status 403, requires {permission})"
+        )
+        self.endpoint = endpoint
+        self.permission = permission
 
 
 class PBSApiClient:
@@ -55,6 +73,7 @@ class PBSApiClient:
         method: str = "GET",
         params: dict[str, Any] | None = None,
         json_data: dict[str, Any] | None = None,
+        permission: str = "the required privilege",
     ) -> Any:
         """Make an HTTP request to the PBS API."""
         url = f"{self._base_url}{endpoint}"
@@ -73,10 +92,13 @@ class PBSApiClient:
                 f"Cannot connect to PBS at {self._base_url}: {err}"
             ) from err
 
-        if resp.status in (401, 403):
+        if resp.status == 401:
             raise PBSAuthError(
-                f"Authentication failed (status {resp.status})"
+                f"Invalid API token (status 401) while calling {endpoint}"
             )
+
+        if resp.status == 403:
+            raise PBSPermissionError(endpoint, permission)
 
         if resp.status != 200:
             text = await resp.text()
@@ -93,16 +115,20 @@ class PBSApiClient:
 
     async def async_get_datastores(self) -> list[dict[str, Any]]:
         """Fetch list of datastores."""
-        return await self._request(API_DATASTORE_LIST)
+        return await self._request(
+            API_DATASTORE_LIST, permission=PRIV_DATASTORE_AUDIT
+        )
 
     async def async_get_datastore_usage(self) -> list[dict[str, Any]]:
         """Fetch datastore usage statistics."""
-        return await self._request(API_DATASTORE_USAGE)
+        return await self._request(
+            API_DATASTORE_USAGE, permission=PRIV_DATASTORE_AUDIT
+        )
 
     async def async_get_snapshots(self, store: str) -> list[dict[str, Any]]:
         """Fetch snapshots for a datastore."""
         endpoint = API_DATASTORE_SNAPSHOTS.format(store=store)
-        return await self._request(endpoint)
+        return await self._request(endpoint, permission=PRIV_DATASTORE_AUDIT)
 
     async def async_get_tasks(
         self, node: str, since: int, type_filter: str | None = None
@@ -112,7 +138,9 @@ class PBSApiClient:
         params: dict[str, Any] = {"since": since, "limit": 500}
         if type_filter:
             params["typefilter"] = type_filter
-        return await self._request(endpoint, params=params)
+        return await self._request(
+            endpoint, params=params, permission=PRIV_SYS_AUDIT
+        )
 
     async def async_start_verify(
         self,
@@ -130,19 +158,50 @@ class PBSApiClient:
             json_data["backup-type"] = backup_type
         if backup_id:
             json_data["backup-id"] = backup_id
-        return await self._request(endpoint, method="POST", json_data=json_data)
+        return await self._request(
+            endpoint,
+            method="POST",
+            json_data=json_data,
+            permission=PRIV_DATASTORE_VERIFY.format(store=store),
+        )
 
     async def async_start_gc(self, store: str) -> str:
         """Start garbage collection on a datastore. Returns UPID."""
         endpoint = API_DATASTORE_GC.format(store=store)
-        return await self._request(endpoint, method="POST")
+        return await self._request(
+            endpoint,
+            method="POST",
+            permission=PRIV_DATASTORE_MODIFY.format(store=store),
+        )
 
     async def async_start_prune(self, store: str) -> str:
         """Start a prune job on a datastore. Returns UPID."""
         endpoint = API_DATASTORE_PRUNE.format(store=store)
-        return await self._request(endpoint, method="POST", json_data={})
+        return await self._request(
+            endpoint,
+            method="POST",
+            json_data={},
+            permission=PRIV_DATASTORE_PRUNE.format(store=store),
+        )
 
     async def async_test_connection(self) -> bool:
-        """Test the connection to PBS."""
+        """Test the connection to PBS.
+
+        Only checks that host, port and token are usable — /version needs no
+        privileges, so a token without any ACL passes this check.
+        """
         await self.async_get_version()
         return True
+
+    async def async_check_permissions(self, node: str) -> None:
+        """Verify the token holds the privileges the coordinator needs.
+
+        Raises PBSPermissionError for the first endpoint that is denied, so
+        a misconfigured ACL fails during setup instead of on the first refresh.
+        """
+        await self.async_get_datastore_usage()
+        await self._request(
+            API_NODE_TASKS.format(node=node),
+            params={"limit": 1},
+            permission=PRIV_SYS_AUDIT,
+        )

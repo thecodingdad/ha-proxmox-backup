@@ -71,6 +71,54 @@ Or add manually:
 | `pve_token_secret` | string | optional | PVE API token secret |
 | `pve_verify_ssl` | boolean | false | Enable SSL certificate verification |
 
+## API Token Permissions
+
+The setup wizard verifies the token during configuration and rejects it if privileges are missing. Note that a token only ever gets the intersection of its own ACL and the parent user's ACL, unless **Privilege Separation** is disabled for the token.
+
+### PBS Permissions
+
+| Feature | Privilege | Path |
+|---------|-----------|------|
+| Datastore sensors (usage, size, snapshots) | `Datastore.Audit` | `/datastore` (or `/datastore/<store>`) |
+| Task history, backup status, freshness | `Sys.Audit` | `/system` |
+| Verify button | `Datastore.Verify` | `/datastore/<store>` |
+| Garbage collection button | `Datastore.Modify` | `/datastore/<store>` |
+| Prune button | `Datastore.Prune` | `/datastore/<store>` |
+
+Minimum for read-only monitoring — assign both roles:
+
+```bash
+proxmox-backup-manager user create monitor@pbs
+proxmox-backup-manager user generate-token monitor@pbs ha-token
+proxmox-backup-manager acl update /datastore DatastoreAudit --auth-id 'monitor@pbs!ha-token'
+proxmox-backup-manager acl update /system Audit --auth-id 'monitor@pbs!ha-token'
+```
+
+To also use the verify, garbage collection, and prune buttons, grant `DatastoreAdmin` on the datastore instead of `DatastoreAudit`:
+
+```bash
+proxmox-backup-manager acl update /datastore DatastoreAdmin --auth-id 'monitor@pbs!ha-token'
+```
+
+### PVE Permissions (optional)
+
+| Feature | Privilege | Path |
+|---------|-----------|------|
+| Node list, backup schedules (next backup sensor) | `Sys.Audit` | `/` |
+| Trigger backup button | `VM.Backup` | `/vms/<vmid>` or `/vms` |
+| Trigger backup button | `Datastore.AllocateSpace` | `/storage/<storage>` |
+
+```bash
+pveum user add ha@pve
+pveum user token add ha@pve ha-token --privsep 0
+pveum acl modify / --roles PVEAuditor --tokens 'ha@pve!ha-token'
+# only needed for the trigger backup button
+pveum acl modify /vms --roles PVEVMAdmin --tokens 'ha@pve!ha-token'
+pveum acl modify /storage --roles PVEDatastoreUser --tokens 'ha@pve!ha-token'
+```
+
+Without PVE permissions the integration still works — PVE features are disabled and a warning is written to the log.
+
 ## Entities
 
 The integration creates the following entities for each datastore on your Proxmox Backup Server.
@@ -100,6 +148,16 @@ The integration creates the following entities for each datastore on your Proxmo
 | Trigger Verify | Start a verify job on the datastore |
 | Garbage Collection | Run garbage collection on the datastore |
 | Prune | Execute a prune operation on the datastore |
+
+## Troubleshooting
+
+| Message | Cause |
+|---------|-------|
+| `Invalid API token` | HTTP 401 — token ID or secret is wrong, the token was deleted, or the realm in the token ID does not match (e.g. `@pbs` vs `@pam`) |
+| `The API token is valid but lacks permissions` | HTTP 403 — the token authenticates, but the ACL is missing a privilege. The log names the denied endpoint and the required privilege |
+| `Failed to connect` | Host, port, firewall, or SSL certificate problem |
+
+If the token is rejected while the integration is running, Home Assistant starts a re-authentication flow where a new token can be entered. Permission problems do not trigger re-authentication — fix the ACL and reload the integration.
 
 ## Multilanguage Support
 
